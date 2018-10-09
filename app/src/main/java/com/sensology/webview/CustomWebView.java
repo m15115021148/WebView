@@ -1,19 +1,36 @@
 package com.sensology.webview;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.text.Html;
 import android.util.AttributeSet;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
+import android.widget.Toast;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+import static android.content.Intent.EXTRA_TITLE;
 
 
 /**
@@ -21,10 +38,16 @@ import android.widget.ProgressBar;
  * Web控件
  */
 public class CustomWebView extends WebView {
-
+    private Activity mContext;
     private ProgressBar mProgressBar;
     private OnWebViewListener mWebListener;
 
+
+    private ValueCallback<Uri> uploadMessage;
+    private ValueCallback<Uri[]> uploadMessageAboveL;
+
+    public static final int REQUEST_SELECT_FILE = 100;
+    public static final int FILECHOOSER_RESULTCODE = 2;
 
     public CustomWebView(Context context) {
         this(context, null);
@@ -34,6 +57,12 @@ public class CustomWebView extends WebView {
         super(context, attrs);
         init(context);
     }
+
+    public void setContext(Activity mContext) {
+        this.mContext = mContext;
+    }
+
+
 
     @SuppressLint("SetJavaScriptEnabled")
     private void init(Context context) {
@@ -55,14 +84,15 @@ public class CustomWebView extends WebView {
         webSettings.setDomStorageEnabled(true);
         webSettings.setSupportMultipleWindows(true);
         //webSettings.setUseWideViewPort(true);
-        this.setWebViewClient(mWebViewClientBase);
         this.setWebChromeClient(mWebChromeClientBase);
+        this.setWebViewClient(mWebViewClientBase);
         setDownloadListener(new DownloadListener());
         this.onResume();
     }
 
     /**
      * 加载HTML数据
+     *
      * @param htmlData
      */
     public void loadHtmlData(String htmlData) {
@@ -80,7 +110,7 @@ public class CustomWebView extends WebView {
 
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            if( url.startsWith("http:") || url.startsWith("https:") ) {
+            if (url.startsWith("http:") || url.startsWith("https:")) {
                 return false;
             }
             // Otherwise allow the OS to handle things like tel, mailto, etc.
@@ -145,6 +175,54 @@ public class CustomWebView extends WebView {
         public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
             return super.onCreateWindow(view, isDialog, isUserGesture, resultMsg);
         }
+
+        // For 3.0+ Devices (Start)
+        // onActivityResult attached before constructor
+        protected void openFileChooser(ValueCallback uploadMsg, String acceptType) {
+            uploadMessage = uploadMsg;
+            openFileChooser(uploadMsg);
+        }
+
+
+        // For Lollipop 5.0+ Devices
+        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+        public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams) {
+            if (uploadMessage != null) {
+                uploadMessage.onReceiveValue(null);
+                uploadMessage = null;
+            }
+
+            uploadMessageAboveL = filePathCallback;
+
+            Intent intent = fileChooserParams.createIntent();
+//            intent.addCategory(Intent.CATEGORY_OPENABLE);
+//            intent.setType("*/*");
+//            intent.putExtra(EXTRA_TITLE, "File Browser");
+//            intent.putExtra(EXTRA_TITLE, "File Chooser");
+            try {
+                mContext.startActivityForResult(intent, REQUEST_SELECT_FILE);
+            } catch (ActivityNotFoundException e) {
+                uploadMessage = null;
+                Toast.makeText(mContext, "Cannot Open File Chooser", Toast.LENGTH_LONG).show();
+                return false;
+            }
+            return true;
+        }
+
+        //For Android 4.1 only
+        protected void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture) {
+            uploadMessage = uploadMsg;
+            openFileChooser(uploadMsg);
+        }
+
+        protected void openFileChooser(ValueCallback<Uri> uploadMsg) {
+            uploadMessage = uploadMsg;
+            Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("*/*");
+            mContext.startActivityForResult(Intent.createChooser(i, "File Chooser"), FILECHOOSER_RESULTCODE);
+        }
+
     }
 
     public class DownloadListener implements android.webkit.DownloadListener {
@@ -172,6 +250,23 @@ public class CustomWebView extends WebView {
 
     public interface OnWebViewListener {
         void onProgressChanged(int progress);
+
         void onError();
+    }
+
+    public ValueCallback<Uri> getUploadMessage() {
+        return uploadMessage;
+    }
+
+    public ValueCallback<Uri[]> getUploadMessageAboveL() {
+        return uploadMessageAboveL;
+    }
+
+    public void setUploadMessage(ValueCallback<Uri> uploadMessage) {
+        this.uploadMessage = uploadMessage;
+    }
+
+    public void setUploadMessageAboveL(ValueCallback<Uri[]> uploadMessageAboveL) {
+        this.uploadMessageAboveL = uploadMessageAboveL;
     }
 }
