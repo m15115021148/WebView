@@ -10,7 +10,7 @@ import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
     private EditText mEt;
-    private String url = "http://192.168.11.65/";
+    private String url = "https://mallsit.senhome.com.cn/discovery";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

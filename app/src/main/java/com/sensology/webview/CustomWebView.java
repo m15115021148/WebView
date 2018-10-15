@@ -86,6 +86,9 @@ public class CustomWebView extends WebView {
         //webSettings.setUseWideViewPort(true);
         this.setWebChromeClient(mWebChromeClientBase);
         this.setWebViewClient(mWebViewClientBase);
+        if (Build.VERSION.SDK_INT >= 21) {
+            webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        }
         setDownloadListener(new DownloadListener());
         this.onResume();
     }
